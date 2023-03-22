@@ -7,9 +7,10 @@ public class ReadWriteAging {
     // implements aging for writers to avoid starvation
     private int writeWaitTime;
     private int readWaitTime;
+    private int lastWriterId;
 
     public synchronized void lockRead(int id) throws InterruptedException {
-        while (isWriter || (readers > 0 && writeWaitTime < readers)) {
+        while (isWriter || (readers > 0 && writeWaitTime < readers) || (id != lastWriterId && writeWaitTime > 0)) {
             if (readers > 0 && writeWaitTime < readers) {
                 System.out.println("I'm reader " + id + " and I've been greedy, I'll let writer go first");
             }
@@ -21,13 +22,13 @@ public class ReadWriteAging {
 
     public synchronized void unlockRead() {
         readers--;
-        writeWaitTime++;
+        writeWaitTime += writers;
         readWaitTime = 0;
         notifyAll();
     }
 
     public synchronized void lockWrite(int id) throws InterruptedException {
-        while (isWriter || readers > 0 || (writers > 0 && readWaitTime < writers)) {
+        while (isWriter || readers > 0 || (writers > 0 && readWaitTime < writers) || (id != lastWriterId && readWaitTime > 0)) {
             if (writers > 0 && writeWaitTime < writers) {
                 System.out.println("I'm writer " + id + " and I've been greedy, I'll let reader go first");
             }
@@ -41,8 +42,9 @@ public class ReadWriteAging {
         counter = id;
         System.out.println("I'm writer " + id + " and I wrote counter = " + id);
         isWriter = false;
+        lastWriterId = id;
+        readWaitTime += readers;
         writeWaitTime = 0;
-        readWaitTime++;
         writers--;
         notifyAll();
     }
