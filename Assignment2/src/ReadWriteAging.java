@@ -3,11 +3,15 @@ public class ReadWriteAging {
     private int readers;
     private int counter;
     private boolean isWriter;
+    // implements aging for writers to avoid starvation
     private int writeWaitTime;
 
     public synchronized void lockRead(int id) throws InterruptedException {
-        while (isWriter) {
+        while (isWriter || (readers > 0 && writeWaitTime < readers)) {
             wait();
+            if (readers > 0 && writeWaitTime < readers) {
+                System.out.println("I'm reader " + id + " and I've been greedy, I'll let writer go first");
+            }
         }
         System.out.println("I'm reader " + id + " and I'm reading counter = " + counter);
         readers++;
@@ -15,6 +19,7 @@ public class ReadWriteAging {
 
     public synchronized void unlockRead() {
         readers--;
+        writeWaitTime++;
         notifyAll();
     }
 
@@ -29,6 +34,7 @@ public class ReadWriteAging {
         counter = id;
         System.out.println("I'm writer " + id + " and I wrote counter = " + id);
         isWriter = false;
+        writeWaitTime = 0;
         notifyAll();
     }
 
