@@ -1,20 +1,19 @@
 import java.util.concurrent.Semaphore;
 
 public class ReadWriteAging {
-    private int readers;
+    private int readers = 0;
     private int counter;
     private boolean isWriter;
     private boolean isYourTurnWriter = false;
-    private boolean isYourTurnReader = false;
     // implements aging for writers to avoid starvation
     private int writeWaitTime;
-    private int readWaitTime;
+    private int allDone = 0;
 
     private static final Semaphore finished = new Semaphore(0);
 
-    public synchronized void lockRead(int id) throws InterruptedException {
-        while (isWriter || (readers > 0 && writeWaitTime >= 10) || isYourTurnWriter) {
-            if (readers > 0 && writeWaitTime >= 10 || isYourTurnWriter) {
+    public synchronized void lockRead(int id, int writers) throws InterruptedException {
+        while (isWriter || (readers > 0 && writeWaitTime >= 10 && allDone != writers) || isYourTurnWriter) {
+            if (readers > 0 && writeWaitTime >= 10) {
                 System.out.println("I'm reader " + id + " and I've been greedy, I'll let writer go first");
                 isYourTurnWriter = true;
             }
@@ -27,20 +26,14 @@ public class ReadWriteAging {
     public synchronized void unlockRead() {
         readers--;
         writeWaitTime++;
-        isYourTurnReader = false;
-        readWaitTime = 0;
+
         notifyAll();
         ReadWriteAging.finished.release();
     }
 
-    public synchronized void lockWrite(int id) throws InterruptedException {
-        while (readers > 0 || writeWaitTime >= 10 || isYourTurnReader) {
-            if (readWaitTime >= 10 || isYourTurnReader) {
-                System.out.println("I'm writer " + id + " and I've been greedy, I'll let reader go first");
-                isYourTurnReader = true;
-                wait();
-            }
-
+    public synchronized void lockWrite() throws InterruptedException {
+        while (isWriter || readers > 0) {
+            wait();
         }
         isWriter = true;
     }
@@ -50,10 +43,10 @@ public class ReadWriteAging {
         System.out.println("I'm writer " + id + " and I wrote counter = " + id);
         isWriter = false;
         writeWaitTime = 0;
-        readWaitTime++;
         isYourTurnWriter = false;
         notifyAll();
         ReadWriteAging.finished.release();
+        allDone++;
     }
 
     public static void main(String[] args) {
@@ -80,7 +73,7 @@ public class ReadWriteAging {
             final int id = i;
             Thread writerThread = new Thread(() -> {
                 try {
-                    lock.lockWrite(id);
+                    lock.lockWrite();
                     // perform write operation
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -96,7 +89,7 @@ public class ReadWriteAging {
             final int id = i;
             Thread readerThread = new Thread(() -> {
                 try {
-                    lock.lockRead(id);
+                    lock.lockRead(id, t_Writer);
                     // perform read operation
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
