@@ -16,7 +16,7 @@ public class ReadWriteReentrant {
     public void lockRead(int id, int writers) throws InterruptedException {
         lock.readLock().lock();
         try {
-            while (isWriter || (readers > 0 && writeWaitTime >= 10 && allDone != writers) || isYourTurnWriter) {
+            while (isWriter || (readers > 0 && writeWaitTime >= 10 && allDone != writers) || isYourTurnWriter || lock.isWriteLocked()) {
                 if (readers > 0 && writeWaitTime >= 10) {
                     System.out.println("I'm reader " + id + " and I've been greedy, I'll let writer go first");
                     isYourTurnWriter = true;
@@ -37,10 +37,11 @@ public class ReadWriteReentrant {
         try {
             readers--;
             writeWaitTime++;
-
-            lock.notifyAll();
         } finally {
             lock.readLock().unlock();
+        }
+        synchronized (lock) {
+            lock.notifyAll();
         }
         ReadWriteReentrant.finished.release();
     }
@@ -67,13 +68,12 @@ public class ReadWriteReentrant {
             isWriter = false;
             writeWaitTime = 0;
             isYourTurnWriter = false;
-
-            synchronized (lock) {
-                lock.notifyAll();
-            }
             allDone++;
         } finally {
             lock.writeLock().unlock();
+        }
+        synchronized (lock) {
+            lock.notifyAll();
         }
         ReadWriteReentrant.finished.release();
     }
