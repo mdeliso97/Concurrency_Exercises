@@ -14,7 +14,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class SavagesBasic {
 
-    private static final ReentrantLock lock0 = new ReentrantLock();
+    private static final ReentrantLock lock = new ReentrantLock();
     private static volatile boolean CanCook = true;
     private static volatile boolean CanEat = false;
     private static volatile int counter = 0;
@@ -31,32 +31,26 @@ public class SavagesBasic {
         return new AtomicIntegerArray(savages);
     }
 
-    public static void TakePortion(AtomicIntegerArray Pot, int id, AtomicIntegerArray eatCounter) {
-        while (CanEat && !CanCook) {
-            lock0.lock();
-            try {
-                if (eatCounter.get(id) == 0) {
-                    for (int j = 0; j < Pot.length(); j++) {
-                        if (Pot.get(j) != 0) {
-                            Pot.getAndSet(j, 0);
-                            eatCounter.incrementAndGet(id);
-                            System.out.println("I am Savage " + id + ": I took meal " + j + "!");
-
-                            break;
-                        }
-                        if (Pot.length() - 1 == j && !CanCook) {
+    public static synchronized void TakePortion(AtomicIntegerArray Pot, int id, AtomicIntegerArray eatCounter) {
+        boolean foundMeal = false;
+        while (!foundMeal && CanEat && !CanCook) {
+            for (int j = 0; j < Pot.length(); j++) {
+                if (Pot.get(j) != 0) {
+                    Pot.getAndSet(j, 0);
+                    eatCounter.incrementAndGet(id);
+                    System.out.println("I am Savage " + id + ": I took meal " + j + "!");
+                    counter++;
+                    if (Pot.length() - 1 == j && !CanCook) {
+                        synchronized (lock) {
                             System.out.println("I am Savage " + id + ": Meals are finished! Please cook more cooker!");
                             CanCook = true;
                             CanEat = false;
                         }
                     }
+                    foundMeal = true;
+                    break;
                 }
-            } finally {
-                lock0.unlock();
             }
-        }
-        if (eatCounter.get(id) == 0) {
-            TakePortion(Pot, id, eatCounter);
         }
     }
 
@@ -74,10 +68,11 @@ public class SavagesBasic {
                 System.out.println("Meals are ready!");
             }
         }
-        while (!CanCook || counter != Savages) {
+        while (!CanCook && counter != Savages) {
         }
-        while (CanCook || counter != Savages)
-        RefillPot(Pot, Savages);
+        if (CanCook && counter != Savages) {
+            RefillPot(Pot, Savages);
+        }
     }
 
     public static void main(String[] args) {
@@ -104,7 +99,7 @@ public class SavagesBasic {
 
         AtomicIntegerArray numberSavages = SavagesBasic.numberSavages(Savages);
 
-        AtomicIntegerArray eatCounter  = SavagesBasic.eatCounter(Savages);
+        AtomicIntegerArray eatCounter = SavagesBasic.eatCounter(Savages);
 
         //prints Environment
         System.out.println("The size of the bounded Pot is " + Pot.length() + " with " + Savages + " Savages and 1 Cooker Threads:");
