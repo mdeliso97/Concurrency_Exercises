@@ -43,7 +43,6 @@ public class SavagesBasic {
     private static int portions = 0; // number of portions in the pot
 
     static class Savage extends Thread {
-        public static final Semaphore finished0 = new Semaphore(0);
         int id;
         AtomicIntegerArray pot;
         AtomicIntegerArray portionsEaten;
@@ -87,7 +86,6 @@ public class SavagesBasic {
     static class Cooker extends Thread {
         AtomicIntegerArray pot;
         AtomicIntegerArray portionsEaten;
-        public static final Semaphore finished1 = new Semaphore(0);
 
         public Cooker(AtomicIntegerArray pot, AtomicIntegerArray portionsEaten) {
             this.pot = pot;
@@ -95,7 +93,8 @@ public class SavagesBasic {
         }
 
         public void run() {
-            while (true) {
+            while (!IntStream.range(0, portionsEaten.length())
+                    .allMatch(i -> portionsEaten.get(i) == 1)) {
                 try {
                     empty.acquire(); // wait for the pot to be empty
                     for (int i = 0; i < pot.length(); i++)// refill the pot
@@ -106,13 +105,8 @@ public class SavagesBasic {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                try {
-                    Savage.finished0.acquire(pot.length());
-                    System.out.println("All savages are done eating: " + portionsEaten);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
             }
+            System.out.println("All savages are done eating: " + portionsEaten);
         }
     }
 
@@ -146,10 +140,12 @@ public class SavagesBasic {
         cooker.start();
 
         // Wait for threads completion
-        try {
-            Savage.finished0.acquire(Savages);
-            Cooker.finished1.acquire();
-        } catch (InterruptedException e) {
+        for (int i = 0; i < Savages; i++) {
+            try {
+                savages[i].join();
+                cooker.join();
+            } catch (InterruptedException e) {
+            }
         }
     }
 
