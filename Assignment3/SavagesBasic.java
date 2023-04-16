@@ -95,8 +95,7 @@ public class SavagesBasic {
         }
 
         public void run() {
-            while (!IntStream.range(0, portionsEaten.length())
-                    .allMatch(i -> portionsEaten.get(i) == 1)) {
+            while (true) {
                 try {
                     empty.acquire(); // wait for the pot to be empty
                     for (int i = 0; i < pot.length(); i++)// refill the pot
@@ -107,8 +106,13 @@ public class SavagesBasic {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                try {
+                    Savage.finished0.acquire(pot.length());
+                    System.out.println("All savages are done eating: " + portionsEaten);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
-            System.out.println("All savages are done eating: " + portionsEaten);
         }
     }
 
