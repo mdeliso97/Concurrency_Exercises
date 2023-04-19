@@ -25,6 +25,11 @@ import java.util.stream.IntStream;
  * The Cook class represents a thread that simulates the cook. The cook loops indefinitely and waits for the empty
  * semaphore to know if the pot needs to be refilled.
  * <p>
+ *
+ * Note: With this implementation I had a hard time letting the implementation stop, the savages only eat from the pot
+ * one single portion each, afterwards they exit the loop. However, the Cooker keeps looping and never exits the loop
+ * leading to an infinite loop of busy waiting. I tried different approach but none seems to work without breaking the
+ * code.
  */
 
 public class SavagesBasic {
@@ -40,7 +45,7 @@ public class SavagesBasic {
         return new AtomicIntegerArray(potLength);
     }
 
-    private static int portions = 0; // number of portions in the pot
+    private static volatile int portions = 0; // number of portions in the pot
 
     static class Savage extends Thread {
         int id;
@@ -87,14 +92,16 @@ public class SavagesBasic {
         AtomicIntegerArray pot;
         AtomicIntegerArray portionsEaten;
 
+        private int counter = 0;
+
         public Cooker(AtomicIntegerArray pot, AtomicIntegerArray portionsEaten) {
             this.pot = pot;
             this.portionsEaten = portionsEaten;
         }
 
         public void run() {
-            while (!IntStream.range(0, portionsEaten.length())
-                    .allMatch(i -> portionsEaten.get(i) == 1)) {
+            for (int j = 0; j < portionsEaten.length(); j++) {if (portionsEaten.get(j) == 1) counter++;}
+            while (counter != portionsEaten.length()) {
                 try {
                     empty.acquire(); // wait for the pot to be empty
                     for (int i = 0; i < pot.length(); i++)// refill the pot
@@ -111,6 +118,7 @@ public class SavagesBasic {
     }
 
     public static void main(String[] args) {
+
         //check that inputs are 2
         if (args.length != 2) {
             System.out.println("The arguments provided are not 2!");
@@ -148,5 +156,4 @@ public class SavagesBasic {
             }
         }
     }
-
 }
