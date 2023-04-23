@@ -10,8 +10,8 @@ import java.util.stream.IntStream;
  * The mutex semaphore is used to ensure mutual exclusion when accessing the pot, so that only one thread can
  * access it at a time.
  * <p>
- * The empty semaphore is used to signal the cook that the pot is empty and needs to be refilled. Each savage that
- * finds the pot empty releases the empty semaphore and waits for the full semaphore to be released by the cook
+ * The empty semaphore is used to signal the cooker that the pot is empty and needs to be refilled. Each savage that
+ * finds the pot empty releases the empty semaphore and waits for the full semaphore to be released by the cooker
  * when the pot is refilled.
  * <p>
  * The full semaphore is used to signal the savages that the pot has been refilled and is now full. Each time the
