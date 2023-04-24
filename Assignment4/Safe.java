@@ -56,6 +56,7 @@ public class Safe {
         int N;
         LinkedList<Integer> list;
         AtomicIntegerArray producerArray;
+        static Semaphore mutex = new Semaphore(1);
 
         public Producer(int id, LinkedList<Integer> list, AtomicIntegerArray producerArray,int N) {
             this.id = id;
@@ -66,11 +67,19 @@ public class Safe {
 
         public void run() {
             while (producerArray.get(id) < N) {
-                list.add(id);
-                producerArray.incrementAndGet(id);
-                if (producerArray.get(id) % 100 == 0) {
-                    System.out.println("Producer " + id + " produced element " + id + " and produced in total " + producerArray.get(id));
+                try {
+                    mutex.acquire();
+                    list.add(id);
+                    producerArray.incrementAndGet(id);
+                    if (producerArray.get(id) % 100 == 0) {
+                        System.out.println("Producer " + id + " produced element " + id + " and produced in total " + producerArray.get(id));
+                    }
+                    mutex.release();
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
+
 
             }
         }
