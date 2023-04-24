@@ -1,32 +1,41 @@
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.function.Consumer;
 
 public class Unsafe {
 
     public static LinkedList<Integer> initializeLinkedList() {
-        return new LinkedList<Integer>();
+        return new LinkedList<>();
+    }
+    public static AtomicIntegerArray consumerCounter(int T) {
+        return new AtomicIntegerArray(T);
+    }
+    public static AtomicIntegerArray producerCounter(int T) {
+        return new AtomicIntegerArray(T);
     }
 
     static class Consumer extends Thread {
         int id;
         int N;
         int lastItem;
-        int consumed;
         LinkedList<Integer> list;
+        AtomicIntegerArray consumerArray;
 
-        public Consumer(int id, LinkedList<Integer> list, int N) {
+        public Consumer(int id, LinkedList<Integer> list, AtomicIntegerArray consumerArray, int N) {
             this.id = id;
             this.list = list;
             this.N = N;
+            this.consumerArray = consumerArray;
         }
 
         public void run() {
-            while (consumed < N) {
+            while (consumerArray.get(id) < N) {
                 if (list.size() != 0) {
                     lastItem = list.remove(list.size() - 1);
-                    System.out.println("Consumer " + id + " consumed element" + lastItem + " from list");
-                    consumed++;
-
+                    consumerArray.incrementAndGet(id);
+                    if (consumerArray.get(id) % 100 == 0) {
+                        System.out.println("Consumer " + id + " consumed element " + lastItem + " and consumed in total " + consumerArray.get(id));
+                    }
                 }
             }
         }
@@ -35,23 +44,25 @@ public class Unsafe {
 
     static class Producer extends Thread {
         int id;
-        int produced = 0;
         int N;
         LinkedList<Integer> list;
+        AtomicIntegerArray producerArray;
 
-        public Producer(int id, LinkedList<Integer> list, int N) {
+        public Producer(int id, LinkedList<Integer> list, AtomicIntegerArray producerArray,int N) {
             this.id = id;
             this.list = list;
             this.N = N;
+            this.producerArray = producerArray;
         }
 
         public void run() {
-            while (produced < N) {
-                if (list.size() > 0) {
-                    list.add(id);
-                    System.out.println("Thread " + id + " produced element " + id);
-                    produced++;
+            while (producerArray.get(id) < N) {
+                list.add(id);
+                producerArray.incrementAndGet(id);
+                if (producerArray.get(id) % 100 == 0) {
+                    System.out.println("Producer " + id + " produced element " + id + " and produced in total " + producerArray.get(id));
                 }
+
             }
         }
     }
@@ -77,11 +88,14 @@ public class Unsafe {
 
         LinkedList<Integer> list = Unsafe.initializeLinkedList();
 
+        AtomicIntegerArray consumerArray = Unsafe.consumerCounter(T);
+        AtomicIntegerArray producerArray = Unsafe.producerCounter(T);
+
         Producer[] producer = new Producer[T];
         Consumer[] consumer = new Consumer[T];
         for (int i = 0; i < T; i++) {
-            producer[i] = new Producer(i, list, N);
-            consumer[i] = new Consumer(i, list, N);
+            producer[i] = new Producer(i, list, producerArray, N);
+            consumer[i] = new Consumer(i, list, consumerArray, N);
             producer[i].start();
             consumer[i].start();
         }
