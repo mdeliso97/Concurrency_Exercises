@@ -1,54 +1,53 @@
 import java.util.LinkedList;
+import java.util.function.Consumer;
 
 public class Unsafe {
 
-    public static LinkedList<Integer> initializeLinkedList(int linkedListLength) {
+    public static LinkedList<Integer> initializeLinkedList() {
         return new LinkedList<Integer>();
     }
 
     static class Consumer extends Thread {
         int id;
-        AtomicIntegerArray queue;
+        int N;
+        LinkedList<Integer> list;
 
-        public consumer(int id, AtomicIntegerArray portionsEaten, AtomicIntegerArray pot) {
+        public consumer(int id, LinkedList<Integer> list, int N) {
             this.id = id;
-            this.pot = pot;
-            this.portionsEaten = portionsEaten;
+            this.list = list;
+            this.N = N;
         }
 
         public void run() {
-            while (true) {
+            while ( int i = 0; i < N){
                 try {
-                    if (portions != 0) {
-                        for (int i = 0; i < pot.length(); i++) {
-                            if (pot.get(i) != 0) {
-                                pot.getAndSet(i, 0);
-                                portionsEaten.getAndIncrement(id);
-                                portions--;
-                                System.out.println("Savage " + id + " ate a portion, " + portions + " portions left");
-                                break;
-                            }
-                        }
-                    } else {
-                        System.out.println("Savage " + id + " Notifies cooker");
-                        System.out.println("Current situation on portions eaten per Savage: " + portionsEaten);
-                        portions = pot.length();
+                    if (list.size() != 0) {
+                        list.pop();
+
                     }
-                    Thread.sleep(1000); // simulate eating time
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
                 }
+            } else{
+                System.out.println("Savage " + id + " Notifies cooker");
+                System.out.println("Current situation on portions eaten per Savage: " + portionsEaten);
+                portions = pot.length();
             }
+            Thread.sleep(1000); // simulate eating time
+        } catch(
+        InterruptedException e)
+
+        {
+            e.printStackTrace();
         }
     }
+
 
     static class Producer extends Thread {
         int id;
-        AtomicIntegerArray queue;
+        LinkedList<Integer> list;
 
-        public producer(int id, AtomicIntegerArray portionsEaten, AtomicIntegerArray pot) {
+        public producer(int id, LinkedList<Integer> list) {
             this.id = id;
-            this.list = pot;
+            this.list = list;
             this.portionsEaten = portionsEaten;
         }
 
@@ -77,11 +76,6 @@ public class Unsafe {
             }
         }
     }
-
-
-
-
-
 
 
     public static void main(String[] args) {
@@ -94,33 +88,74 @@ public class Unsafe {
 
         //parse input arguments
         int T = Integer.parseInt(args[0]);
-        int QueueLength = Integer.parseInt(args[1]);
+        int N = Integer.parseInt(args[1]);
 
         //check that inputs are positive
-        if (T <= 0 || QueueLength <= 0) {
+        if (T <= 0 || N <= 0) {
             System.out.println("The integers you entered are not positive, please try again");
             return;
         }
 
-        AtomicIntegerArray Pot = Unsafe.initializeQueue(QueueLength);
+        LinkedList<Integer> list = Unsafe.initializeLinkedList();
 
-        AtomicIntegerArray portionsEaten = SavagesBasic.eatCounter(Savages);
-
-        Savage[] savages = new Savage[Savages];
-        for (int i = 0; i < Savages; i++) {
-            savages[i] = new Savage(i, portionsEaten, Pot);
-            savages[i].start();
+        Producer[] producer = new Producer[T];
+        Consumer[] consumer = new Consumer[T];
+        for (int i = 0; i < T; i++) {
+            producer[i] = new Producer.producer(i, list, N);
+            consumer[i] = new Consumer();
+            producer[i].start();
+            consumer[i].start();
         }
-        Cooker cooker = new Cooker(Pot, portionsEaten);
-        cooker.start();
 
         // Wait for threads completion
-        for (int i = 0; i < Savages; i++) {
+        for (int i = 0; i < T; i++) {
             try {
-                savages[i].join();
-                cooker.join();
+                consumer[i].join();
+                producer[i].join();
             } catch (InterruptedException e) {
             }
         }
+
+//        Thread[] threads = new Thread[2 * T];
+//        //initialize threads as producers
+//        for (int i = 0; i < T; i++) {
+//            final int id = i;
+//            threads[i] = new Thread(new Thread(() -> {
+//                try {
+//                    while (true) {
+//                        new Unsafe.Producer(id, list);
+//                        Thread.sleep((long) (Math.random() * 1000));
+//                    }
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+//            }));
+//            threads[i].start();
+//        }
+//
+//        //initialize threads as consumers
+//        for (int i = 0; i < T; i++) {
+//            final int id = i;
+//            threads[i] = new Thread(new Thread(() -> {
+//                try {
+//                    while (true) {
+//                        new Unsafe.Consumer(id);
+//                        Thread.sleep((long) (Math.random() * 1000));
+//                    }
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+//            }));
+//            threads[i].start();
+//        }
+//
+//        // Wait for threads completion
+//        for (int i = 0; i < 2 * T; i++) {
+//            try {
+//                threads[i].join();
+//            } catch (InterruptedException e) {
+//            }
+//        }
     }
 }
+
