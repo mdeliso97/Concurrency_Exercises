@@ -63,25 +63,24 @@ public class SavagesFair {
         public void getAndSet(int i) {
             locks[i].lock();
             try {
-                portionsEaten.getAndSet(i, 0);
+                if (get(i) != 0) {
+                    synchronized (this) {
+                        portions--;
+                    }
+                    pot.getAndSet(i, 0);
+                    portionsEaten.getAndIncrement(id);
+                    System.out.println("Savage " + id + " ate a portion, " + portions + " portions left");
+                    System.out.println(pot);
+                }
             } finally {
                 locks[i].unlock();
             }
         }
-
-        public void Eat() {
+        public void Eat() throws InterruptedException {
             if (portions > 0) {
                 for (int i = 0; i < pot.length(); i++) {
-                    if (get(i) != 0) {
-                        getAndSet(i);
-                        portionsEaten.getAndIncrement(id);
-                        synchronized (this) {
-                            portions--;
-                        }
-                        System.out.println("Savage " + id + " ate a portion, " + portions + " portions left");
-                        System.out.println(pot);
-                        break;
-                    }
+                    getAndSet(i);
+                    Thread.sleep(1000);
                 }
             }
         }
@@ -95,8 +94,11 @@ public class SavagesFair {
                     }
                 }
                 if (portionsEaten.get(id) == minimumEaten) {
-                    Eat();
-
+                    try {
+                        Eat();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             }
         }
