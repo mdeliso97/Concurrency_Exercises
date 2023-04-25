@@ -39,6 +39,7 @@ public class SavagesFair {
     }
 
     private static volatile int portions = 0; // number of portions in the pot
+    private static boolean cooking = false;
 
     public synchronized static void incrementPortions() {
         portions++;
@@ -86,10 +87,9 @@ public class SavagesFair {
             }
         }
         public void Eat() throws InterruptedException {
-            if (getPortions() > 0) {
+            if (getPortions() > 0 && !cooking) {
                 for (int i = 0; i < pot.length(); i++) {
                     getAndSet(i);
-                    Thread.sleep(1000);
                 }
             }
         }
@@ -116,12 +116,14 @@ public class SavagesFair {
         public void run() {
             while (true) {
                 if (getPortions() == 0) {
+                    cooking = true;
                     for (int i = 0; i < pot.length(); i++)// refill the pot
                     {
                         pot.getAndIncrement(i);
                         incrementPortions();
                     }
                     System.out.println("Cooker refilled the pot");
+                    cooking = false;
                 }
             }
         }
