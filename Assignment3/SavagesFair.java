@@ -40,6 +40,17 @@ public class SavagesFair {
 
     private static volatile int portions = 0; // number of portions in the pot
 
+    public synchronized static void incrementPortions() {
+        portions++;
+    }
+
+    public synchronized static void decrementPortions() {
+        portions--;
+    }
+    public synchronized static int getPortions() {
+        return portions;
+    }
+
     static class Savage extends Thread {
         int id;
         AtomicIntegerArray pot;
@@ -64,9 +75,7 @@ public class SavagesFair {
             locks[i].lock();
             try {
                 if (get(i) != 0) {
-                    synchronized (this) {
-                        portions--;
-                    }
+                    decrementPortions();
                     pot.getAndSet(i, 0);
                     portionsEaten.getAndIncrement(id);
                     System.out.println("Savage " + id + " ate a portion, " + portions + " portions left");
@@ -77,7 +86,7 @@ public class SavagesFair {
             }
         }
         public void Eat() throws InterruptedException {
-            if (portions > 0) {
+            if (getPortions() > 0) {
                 for (int i = 0; i < pot.length(); i++) {
                     getAndSet(i);
                     Thread.sleep(1000);
@@ -87,18 +96,10 @@ public class SavagesFair {
 
         public void run() {
             while (true) {
-                int minimumEaten = Integer.MAX_VALUE;
-                for(int i = 0; i < portionsEaten.length(); i++) {
-                    if (portionsEaten.get(i) <= minimumEaten) {
-                        minimumEaten = portionsEaten.get(i);
-                    }
-                }
-                if (portionsEaten.get(id) == minimumEaten) {
-                    try {
-                        Eat();
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                try {
+                    Eat();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
             }
         }
@@ -114,11 +115,13 @@ public class SavagesFair {
 
         public void run() {
             while (true) {
-                if (portions <= 0) {
+                if (getPortions() == 0) {
                     for (int i = 0; i < pot.length(); i++)// refill the pot
+                    {
                         pot.getAndIncrement(i);
+                        incrementPortions();
+                    }
                     System.out.println("Cooker refilled the pot");
-                    portions = pot.length();
                 }
             }
         }
