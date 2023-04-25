@@ -1,4 +1,5 @@
 import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Rules:
@@ -43,29 +44,43 @@ public class SavagesFair {
         int id;
         AtomicIntegerArray pot;
         AtomicIntegerArray portionsEaten;
+        ReentrantLock[] locks;
 
-        public Savage(int id, AtomicIntegerArray portionsEaten, AtomicIntegerArray pot) {
+        public Savage(int id, AtomicIntegerArray portionsEaten, AtomicIntegerArray pot, ReentrantLock[] locks) {
             this.id = id;
             this.pot = pot;
             this.portionsEaten = portionsEaten;
+            this.locks = locks;
         }
-        public synchronized void decrementPortions() {
-            portions--;
+        public int get(int i) {
+            locks[i].lock();
+            try {
+                return pot.get(i);
+            } finally {
+                locks[i].unlock();
+            }
+        }
+        public void getAndSet(int i) {
+            locks[i].lock();
+            try {
+                portionsEaten.getAndSet(i, 0);
+            } finally {
+                locks[i].unlock();
+            }
         }
 
-        public void eatingOnce() {
-            synchronized (this) {
-                if (portions > 0) {
-                    for (int i = 0; i < pot.length(); i++) {
-                        if (pot.get(i) != 0) {
-                            pot.getAndSet(i, 0);
-                            portionsEaten.getAndIncrement(id);
-                            decrementPortions();
-                            System.out.println("Savage " + id + " ate a portion, " + portions + " portions left");
-                            System.out.println(pot);
-                            Thread.yield();
-                            break;
+        public void Eat() {
+            if (portions > 0) {
+                for (int i = 0; i < pot.length(); i++) {
+                    if (get(i) != 0) {
+                        getAndSet(i);
+                        portionsEaten.getAndIncrement(id);
+                        synchronized (this) {
+                            portions--;
                         }
+                        System.out.println("Savage " + id + " ate a portion, " + portions + " portions left");
+                        System.out.println(pot);
+                        break;
                     }
                 }
             }
@@ -73,16 +88,16 @@ public class SavagesFair {
 
         public void run() {
             while (true) {
-                synchronized (this) {
-                    int minimumEaten = Integer.MAX_VALUE;
-                    for(int i = 0; i < portionsEaten.length(); i++) {
-                        if (portionsEaten.get(i) <= minimumEaten) {
-                            minimumEaten = portionsEaten.get(i);
-                        }
+                int minimumEaten = Integer.MAX_VALUE;
+                for(int i = 0; i < portionsEaten.length(); i++) {
+                    if (portionsEaten.get(i) <= minimumEaten) {
+                        minimumEaten = portionsEaten.get(i);
                     }
-                    if (portionsEaten.get(id) == minimumEaten) eatingOnce();
                 }
+                if (portionsEaten.get(id) == minimumEaten) {
+                    Eat();
 
+                }
             }
         }
     }
@@ -97,12 +112,12 @@ public class SavagesFair {
 
         public void run() {
             while (true) {
-                    if (portions <= 0) {
-                        for (int i = 0; i < pot.length(); i++)// refill the pot
-                            pot.getAndIncrement(i);
-                        System.out.println("Cooker refilled the pot");
-                        portions = pot.length();
-                    }
+                if (portions <= 0) {
+                    for (int i = 0; i < pot.length(); i++)// refill the pot
+                        pot.getAndIncrement(i);
+                    System.out.println("Cooker refilled the pot");
+                    portions = pot.length();
+                }
             }
         }
     }
@@ -127,9 +142,14 @@ public class SavagesFair {
 
         AtomicIntegerArray portionsEaten = SavagesFair.eatCounter(Savages);
 
+        ReentrantLock[] locks = new ReentrantLock[PotLength];
+        for (int i = 0; i < PotLength; i++) {
+            locks[i] = new ReentrantLock();
+        }
+
         SavagesFair.Savage[] savages = new SavagesFair.Savage[Savages];
         for (int i = 0; i < Savages; i++) {
-            savages[i] = new SavagesFair.Savage(i, portionsEaten, Pot);
+            savages[i] = new SavagesFair.Savage(i, portionsEaten, Pot, locks);
             savages[i].start();
         }
         SavagesFair.Cooker cooker = new SavagesFair.Cooker(Pot, portionsEaten);
