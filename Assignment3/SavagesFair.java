@@ -20,11 +20,12 @@ import java.util.concurrent.locks.ReentrantLock;
  * - You are not allowed to use the Thread.interrupt() and Thread.sleep()
  * </p>
  *
- * Notes: The current implementation does not work properly, I really struggled to find out a solution to the
- * SavagesFair with all of these constraints, with all implementation I tried, I always had mutual exclusion problems,
- * the savages kept eating from the pot even if it was empty or accessed synchronized methods simultaneously for some
- * reasons, probably a different data-structure with queues might have helped. Maybe with some extra time I could have
- * figured out a better way to implement it.
+ * Notes: The current implementation works properly, I really struggled to find out a solution to the
+ * SavagesFair with all of these constraints, with all implementation I tried, I always had problems with the "portions"
+ * integer, since as soon as the cooker was finished, one thread could take a portion before the variable was updated,
+ * bypassing the boolean "cooking". Now that the cooker checks for himself, whether the pot is empty, the savages can
+ * eat without further problems. The implementation is also fair, from output is visible how many portions each savage
+ * ate so far. The implementation takes two parameters: The amount of savages args[0] and the size of the pot args[1].
  */
 
 
@@ -39,22 +40,24 @@ public class SavagesFair {
     }
 
     private static volatile int portions = 0; // number of portions in the pot
-    private static volatile int count = 0;
     private static boolean cooking = false;
+    private static final Object lock = new Object();
 
-    public synchronized static void incrementPortions() {
-        portions++;
-    }
-
-    public synchronized static void decrementPortions() {
-        portions--;
-    }
-    public synchronized static int getPortions(int length, AtomicIntegerArray pot) {
-        for (int i = 0; i < length; i++) {
-            if (pot.get(i) == 0)
-                count++;
+    public static void incrementPortions() {
+        synchronized (lock) {
+            portions++;
         }
-        return count;
+    }
+
+    public static void decrementPortions() {
+        synchronized (lock) {
+            portions--;
+        }
+    }
+    public static int getPortions() {
+        synchronized (lock) {
+            return portions;
+        }
     }
 
     static class Savage extends Thread {
@@ -92,7 +95,7 @@ public class SavagesFair {
             }
         }
         public void Eat() throws InterruptedException {
-            if (portions > 0 && !cooking) {
+            if (getPortions() > 0 && !cooking) {
                 for (int i = 0; i < pot.length(); i++) {
                     getAndSet(i);
                 }
@@ -120,17 +123,24 @@ public class SavagesFair {
 
         public void run() {
             while (true) {
-                cooking = true;
-                if (getPortions(pot.length(), pot) == 0) {
-
+                int count = 0;
+                for (int i = 0; i < pot.length(); i++) {
+                    if (pot.get(i) == 0) {
+                        count++;
+                    }
+                }
+                if (count == pot.length()) {
+                    cooking = true;
+                    portions = 0;
                     for (int i = 0; i < pot.length(); i++)// refill the pot
                     {
                         pot.getAndIncrement(i);
                         incrementPortions();
                     }
                     System.out.println("Cooker refilled the pot");
+                    System.out.println("current situation on portions eaten per savage: " + portionsEaten);
+                    cooking = false;
                 }
-                cooking = false;
             }
         }
     }
