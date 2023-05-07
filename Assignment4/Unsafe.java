@@ -1,6 +1,18 @@
 import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicIntegerArray;
-import java.util.function.Consumer;
+
+/**
+ * Unsafe.java class implements a version of the Consumer-producer problem which is not consistent, there is no mutual
+ * exclusion provided and therefore, the LinkedList accesses are not consistent and consumers may consume the same produced
+ * element multiple times. The same happens for the producers, since they will produce an element in the same spot as
+ * for another producer and overwrite his produced element, leading to a loss of the produced element itself. Also, a
+ * possible scenario is that the consumer tries to consume the last element in the list which is no longer consistent,
+ * since a producer produced an element in the meantime. To check the correctness, it is possible to remove comments on
+ * the print statement which I commented so that it does not affect runtime.
+ * <p>
+ * Elapsed time: 6628 milliseconds with errors caused by the absence of mutual exclusion
+ */
+
 
 public class Unsafe {
 
@@ -33,9 +45,7 @@ public class Unsafe {
                 if (list.size() != 0) {
                     lastItem = list.remove(list.size() - 1);
                     consumerArray.incrementAndGet(id);
-                    if (consumerArray.get(id) % 100 == 0) {
-                        System.out.println("Consumer " + id + " consumed element " + lastItem + " and consumed in total " + consumerArray.get(id));
-                    }
+                    // System.out.println("Consumer " + id + " consumed element " + lastItem + " and consumed in total " + consumerArray.get(id));
                 }
             }
         }
@@ -59,10 +69,7 @@ public class Unsafe {
             while (producerArray.get(id) < N) {
                 list.add(id);
                 producerArray.incrementAndGet(id);
-                if (producerArray.get(id) % 100 == 0) {
-                    System.out.println("Producer " + id + " produced element " + id + " and produced in total " + producerArray.get(id));
-                }
-
+                // System.out.println("Producer " + id + " produced element " + id + " and produced in total " + producerArray.get(id));
             }
         }
     }
@@ -93,6 +100,9 @@ public class Unsafe {
 
         Producer[] producer = new Producer[T];
         Consumer[] consumer = new Consumer[T];
+
+        long startTime = System.currentTimeMillis();
+
         for (int i = 0; i < T; i++) {
             producer[i] = new Producer(i, list, producerArray, N);
             consumer[i] = new Consumer(i, list, consumerArray, N);
@@ -108,6 +118,9 @@ public class Unsafe {
             } catch (InterruptedException e) {
             }
         }
+        long stopTime = System.currentTimeMillis();
+        long elapsedTime = stopTime - startTime;
+        System.out.println("Elapsed time: " + elapsedTime + " milliseconds");
     }
 }
 
