@@ -1,13 +1,25 @@
-public class CASConsensus extends Thread implements IConsensus {
+public class CASConsensus implements IConsensus, Runnable {
 
     private volatile Object decision = null;
 
+    public class CASConsensusThread implements Runnable {
+        private CASConsensus casConsensus;
+
+        public CASConsensusThread() {
+            this.casConsensus = new CASConsensus();
+        }
+
+
+        public void run() {
+
+        }
+    }
     @Override
     public Object decide(Object v) {
         while (true) {
             Object curDecision = decision;
             if (curDecision != null) {
-                System.out.println("The decision made is " + v);
+                System.out.println("The decision made is " + curDecision);
                 return curDecision;
             }
             if (compareAndSetDecision(null, v)) {
