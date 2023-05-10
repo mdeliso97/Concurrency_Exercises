@@ -1,17 +1,34 @@
+import java.util.Random;
+import java.util.concurrent.Semaphore;
+
 public class CASConsensus extends Thread implements IConsensus {
 
     private volatile Object decision = null;
+    static Semaphore mutex = new Semaphore(1);
+    Random random = new Random();
 
     public void run() {
-        // Generate random value function
-        Object result = decide(null);
+        int rand = random.nextInt(5) + 1;
+        Object result;
+        try {
+            mutex.acquire();
+            result = decide(rand);
+            mutex.release();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         System.out.println("Thread " + Thread.currentThread().getId() + " decided on " + result);
     }
 
+    public Object getDecision() {
+
+        return decision;
+    }
+
     @Override
-    public Object decide(Object v) {
+    public Object decide(Object v) throws InterruptedException {
         while (true) {
-            Object curDecision = decision;
+            Object curDecision = getDecision();
             if (curDecision != null) {
                 //System.out.println("The decision made is " + curDecision);
                 return curDecision;
