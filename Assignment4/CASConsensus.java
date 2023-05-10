@@ -3,22 +3,19 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class CASConsensus implements IConsensus {
 
-    private final AtomicReference<Object> decision = new AtomicReference<>(null);
+    private final AtomicReference<Integer> decision = new AtomicReference<>(null);
     private final int numThreads;
     private final Random random = new Random();
-    private final Object[] values;
+    private final int[] values;
 
     public CASConsensus(int numThreads) {
         this.numThreads = numThreads;
-        this.values = new Object[numThreads];
-        for (int i = 0; i < numThreads; i++) {
-            this.values[i] = new Object();
-        }
+        this.values = new int[numThreads];
     }
 
-    public Object decide(Object value) {
+    public synchronized Integer decide(Integer value) {
         while (true) {
-            Object currentDecision = decision.get();
+            Integer currentDecision = decision.get();
             if (currentDecision != null) {
                 return currentDecision;
             }
@@ -29,13 +26,14 @@ public class CASConsensus implements IConsensus {
             // Propose values from other threads
             for (int i = 0; i < numThreads; i++) {
                 if (i == ThreadId.get()) continue;
-                values[numAgree] = proposeValue(i);
-                if (values[numAgree] != null) numAgree++;
+                int proposedValue = proposeValue(i);
+                values[numAgree] = proposedValue;
+                numAgree++;
             }
 
             // Check if consensus is reached
             if (numAgree == numThreads) {
-                Object agreedValue = findMajority(values);
+                Integer agreedValue = findMajority(values);
                 if (decision.compareAndSet(null, agreedValue)) {
                     return agreedValue;
                 }
@@ -43,7 +41,7 @@ public class CASConsensus implements IConsensus {
         }
     }
 
-    private Object proposeValue(int threadID) {
+    private int proposeValue(int threadID) {
         // Simulate a delay
         try {
             Thread.sleep(random.nextInt(5) + 1);
@@ -55,15 +53,13 @@ public class CASConsensus implements IConsensus {
         return values[threadID];
     }
 
-    private Object findMajority(Object[] values) {
+    private int findMajority(int[] values) {
         int majorityCount = 0;
-        Object majorityValue = null;
-        for (Object value : values) {
-            if (value == null) continue;
+        int majorityValue = 0;
+        for (int value : values) {
             int count = 0;
-            for (Object otherValue : values) {
-                if (otherValue == null) continue;
-                if (value.equals(otherValue)) count++;
+            for (int otherValue : values) {
+                if (value == otherValue) count++;
             }
             if (count > majorityCount) {
                 majorityCount = count;
@@ -72,6 +68,7 @@ public class CASConsensus implements IConsensus {
         }
         return majorityValue;
     }
+
     public static void main(String[] args) {
 
         // Check that input is positive
@@ -105,6 +102,11 @@ public class CASConsensus implements IConsensus {
 
         // Print final decision
         System.out.println("Consensus reached: " + consensus.decision.get());
+    }
+
+    @Override
+    public Object decide(Object v) throws InterruptedException {
+        return null;
     }
 }
 
